@@ -9,7 +9,6 @@ import (
 
 	"github.com/elciok/swarmonitor/config"
 	"github.com/elciok/swarmonitor/docker"
-	"github.com/elciok/swarmonitor/notifier"
 	"github.com/elciok/swarmonitor/status"
 )
 
@@ -51,7 +50,7 @@ func run(ctx context.Context) error {
 			for _, containerStatus := range statusList.List {
 				if !containerStatus.Ok() {
 					log.Printf("No running containers in %s.", containerStatus.Target)
-					if err := notifier.SendNotification(cfg, containerStatus); err != nil {
+					if err := containerStatus.SendNotification(cfg.SMTP); err != nil {
 						return err
 					}
 				}

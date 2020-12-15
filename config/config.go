@@ -4,22 +4,13 @@ import (
 	"os"
 	"strconv"
 	"time"
-)
 
-type SMTPConfig struct {
-	Address    string
-	Port       string
-	User       string
-	Password   string
-	Domain     string
-	AuthMethod string
-	From       string
-	To         string
-}
+	"github.com/elciok/swarmonitor/notifier"
+)
 
 type Config struct {
 	ContainerDir string
-	SMTP         *SMTPConfig
+	SMTP         *notifier.SMTPConfig
 	TickInterval time.Duration
 }
 
@@ -49,7 +40,7 @@ func ReadConfig() *Config {
 		config.TickInterval = time.Duration(tickInt) * time.Minute
 	}
 
-	config.SMTP = &SMTPConfig{}
+	config.SMTP = &notifier.SMTPConfig{}
 
 	config.SMTP.Address = os.Getenv(SWMON_SMTP_ADDRESS)
 

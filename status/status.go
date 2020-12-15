@@ -1,11 +1,13 @@
 package status
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/elciok/swarmonitor/notifier"
 	"gopkg.in/yaml.v2"
 )
 
@@ -97,4 +99,31 @@ func filenameHasCheckHealthFlag(filename string) bool {
 
 func (status *Status) Ok() bool {
 	return (status.CheckHealth && status.Healthy) || (!status.CheckHealth && status.Running)
+}
+
+func (status *Status) SendNotification(cfg *notifier.SMTPConfig) error {
+	subject := fmt.Sprintf("swarmonitor - %s is %s", status.Target, statusString(status))
+	body := bodyString(status)
+	if err := notifier.SendNotification(cfg, subject, body); err != nil {
+		return err
+	}
+	return nil
+}
+
+func bodyString(status *Status) string {
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "Status: %s\r\n\r\n", statusString(status))
+	fmt.Fprint(&builder, "Labels:\r\n")
+	for labelKey, labelValue := range status.Labels {
+		fmt.Fprintf(&builder, "\t- %s = %s\r\n", labelKey, labelValue)
+	}
+	return builder.String()
+}
+
+func statusString(status *Status) string {
+	if status.Ok() {
+		return "OK"
+	} else {
+		return "DOWN"
+	}
 }
