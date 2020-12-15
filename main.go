@@ -1,8 +1,11 @@
 package main
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	"log"
+	"os"
+	"time"
 
 	"github.com/elciok/swarmonitor/config"
 	"github.com/elciok/swarmonitor/docker"
@@ -11,31 +14,50 @@ import (
 )
 
 func main() {
-	config := config.ReadConfig()
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
 
-	statusList := status.NewStatusList(config.ContainerDir)
-	err := statusList.ReadFromFiles()
-	if err != nil {
-		panic(err)
-	}
-	err = docker.UpdateStatusList(statusList)
-	if err != nil {
-		panic(err)
-	}
+	defer func() {
+		// signal.Stop(signalChan)
+		cancel()
+	}()
 
-	allRunning := true
-	for _, containerStatus := range statusList.List {
-		if !containerStatus.Ok() {
-			err = notifier.SendNotification(config, containerStatus)
-			if err != nil {
-				panic(err)
+	log.SetOutput(os.Stdout)
+
+	if err := run(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+}
+
+func run(ctx context.Context) error {
+	cfg := config.ReadConfig()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.Tick(cfg.TickInterval):
+			cfg = config.ReadConfig()
+
+			statusList := status.NewStatusList(cfg.ContainerDir)
+
+			if err := statusList.ReadFromFiles(); err != nil {
+				return err
 			}
-			allRunning = false
-			fmt.Println("No running containers with labels:", containerStatus.Labels)
+			if err := docker.UpdateStatusList(statusList); err != nil {
+				return err
+			}
+
+			for _, containerStatus := range statusList.List {
+				if !containerStatus.Ok() {
+					log.Printf("No running containers in %s.", containerStatus.Target)
+					if err := notifier.SendNotification(cfg, containerStatus); err != nil {
+						return err
+					}
+				}
+			}
+
+			log.Println("swarmonitor - checks completed.")
 		}
 	}
-	if !allRunning {
-		panic(errors.New("No running containers for at least one of the container sets checked."))
-	}
-	fmt.Println("swarmonitor - checks completed.")
 }

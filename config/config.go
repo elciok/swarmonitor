@@ -1,6 +1,10 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+	"time"
+)
 
 type SMTPConfig struct {
 	Address    string
@@ -16,9 +20,11 @@ type SMTPConfig struct {
 type Config struct {
 	ContainerDir string
 	SMTP         *SMTPConfig
+	TickInterval time.Duration
 }
 
 const SWMON_CONTAINER_DIR = "SWMON_CONTAINER_DIR"
+const SWMON_TICK_MINUTES = "SWMON_TICK_MINUTES"
 const SWMON_SMTP_ADDRESS = "SWMON_SMTP_ADDRESS"
 const SWMON_SMTP_PORT = "SWMON_SMTP_PORT"
 const SWMON_SMTP_USERNAME = "SWMON_SMTP_USERNAME"
@@ -34,6 +40,13 @@ func ReadConfig() *Config {
 	config.ContainerDir = os.Getenv(SWMON_CONTAINER_DIR)
 	if config.ContainerDir == "" {
 		config.ContainerDir = "/etc/swarmonitor/containers"
+	}
+
+	tickString := os.Getenv(SWMON_TICK_MINUTES)
+	if tickInt, err := strconv.Atoi(tickString); err != nil {
+		config.TickInterval = 60 * time.Second
+	} else {
+		config.TickInterval = time.Duration(tickInt) * time.Minute
 	}
 
 	config.SMTP = &SMTPConfig{}
