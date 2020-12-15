@@ -17,7 +17,6 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 
 	defer func() {
-		// signal.Stop(signalChan)
 		cancel()
 	}()
 
@@ -31,6 +30,8 @@ func main() {
 
 func run(ctx context.Context) error {
 	cfg := config.ReadConfig()
+	statusList := status.NewStatusList(cfg.ContainerDir)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -38,8 +39,7 @@ func run(ctx context.Context) error {
 		case <-time.Tick(cfg.TickInterval):
 			cfg = config.ReadConfig()
 
-			statusList := status.NewStatusList(cfg.ContainerDir)
-
+			statusList.DataDir = cfg.ContainerDir
 			if err := statusList.ReadFromFiles(); err != nil {
 				return err
 			}
@@ -48,8 +48,8 @@ func run(ctx context.Context) error {
 			}
 
 			for _, containerStatus := range statusList.List {
-				if !containerStatus.Ok() {
-					log.Printf("No running containers in %s.", containerStatus.Target)
+				if containerStatus.ShouldSendNotification() {
+					log.Printf("Sending notification. Containers in %s. Status: %s", containerStatus.Target, containerStatus.StatusString())
 					if err := containerStatus.SendNotification(cfg.SMTP); err != nil {
 						return err
 					}

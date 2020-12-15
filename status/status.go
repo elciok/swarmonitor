@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/elciok/swarmonitor/notifier"
 	"gopkg.in/yaml.v2"
@@ -14,9 +15,10 @@ import (
 type Status struct {
 	Target      string
 	Labels      map[string]string
-	CheckHealth bool
-	Running     bool
-	Healthy     bool
+	checkHealth bool
+	running     bool
+	healthy     bool
+	changed     bool
 }
 
 type StatusList struct {
@@ -32,12 +34,24 @@ func NewStatusList(dataDir string) *StatusList {
 }
 
 func NewStatus(target string, labels map[string]string) *Status {
-	return &Status{
-		Target:  target,
-		Labels:  labels,
-		Running: false,
-		Healthy: false,
+	status := &Status{
+		Target:      target,
+		Labels:      labels,
+		checkHealth: filenameHasCheckHealthFlag(target),
+		running:     false,
+		healthy:     false,
+		changed:     false,
 	}
+
+	// set to true because it is the expected state
+	// if containers are down it will send notification
+	if status.checkHealth {
+		status.healthy = true
+	} else {
+		status.running = true
+	}
+
+	return status
 }
 
 func (statusList *StatusList) ReadFromFiles() error {
@@ -67,7 +81,6 @@ func (statusList *StatusList) ReadFromFiles() error {
 		status, ok := statusList.List[file]
 		if !ok {
 			status = NewStatus(file, labels)
-			status.CheckHealth = filenameHasCheckHealthFlag(file)
 
 			statusList.List[file] = status
 		} else {
@@ -97,22 +110,46 @@ func filenameHasCheckHealthFlag(filename string) bool {
 	}
 }
 
+func (status *Status) SetRunning(running bool) {
+	if running != status.running && !status.checkHealth {
+		status.changed = true
+	}
+	status.running = running
+}
+
+func (status *Status) SetHealthy(healthy bool) {
+	if healthy != status.healthy && status.checkHealth {
+		status.changed = true
+	}
+	status.healthy = healthy
+}
+
 func (status *Status) Ok() bool {
-	return (status.CheckHealth && status.Healthy) || (!status.CheckHealth && status.Running)
+	return status.OkWithValues(status.running, status.healthy)
+}
+
+func (status *Status) OkWithValues(running bool, healthy bool) bool {
+	return (status.checkHealth && healthy) || (!status.checkHealth && running)
+}
+
+func (status *Status) ShouldSendNotification() bool {
+	return status.changed
 }
 
 func (status *Status) SendNotification(cfg *notifier.SMTPConfig) error {
-	subject := fmt.Sprintf("swarmonitor - %s is %s", status.Target, statusString(status))
+	subject := fmt.Sprintf("swarmonitor - %s is %s", status.Target, status.StatusString())
 	body := bodyString(status)
 	if err := notifier.SendNotification(cfg, subject, body); err != nil {
 		return err
 	}
+	status.changed = false
 	return nil
 }
 
 func bodyString(status *Status) string {
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "Status: %s\r\n\r\n", statusString(status))
+	fmt.Fprintf(&builder, "Status: %s\r\n", status.StatusString())
+	fmt.Fprintf(&builder, "Time: %s\r\n\r\n", time.Now())
 	fmt.Fprint(&builder, "Labels:\r\n")
 	for labelKey, labelValue := range status.Labels {
 		fmt.Fprintf(&builder, "\t- %s = %s\r\n", labelKey, labelValue)
@@ -120,7 +157,7 @@ func bodyString(status *Status) string {
 	return builder.String()
 }
 
-func statusString(status *Status) string {
+func (status *Status) StatusString() string {
 	if status.Ok() {
 		return "OK"
 	} else {

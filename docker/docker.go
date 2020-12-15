@@ -41,21 +41,23 @@ func UpdateStatus(status *status.Status) error {
 		return err
 	}
 
-	status.Running = false
-	status.Healthy = false
+	var anyRunning = false
+	var anyHealthy = false
 	for _, container := range containers {
 		if container.State == "running" {
-			status.Running = true
+			anyRunning = true
 		}
 
 		if strings.Contains(container.Status, "(healthy)") {
-			status.Healthy = true
+			anyHealthy = true
 		}
 
-		if status.Ok() {
+		if status.OkWithValues(anyRunning, anyHealthy) {
 			break
 		}
 	}
+	status.SetRunning(anyRunning)
+	status.SetHealthy(anyHealthy)
 
 	return nil
 }
