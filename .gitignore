@@ -1,0 +1,4 @@
+swarmonitor
+*.test
+*.out
+*.tmp
