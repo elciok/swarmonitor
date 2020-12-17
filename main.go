@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +13,16 @@ import (
 	"github.com/elciok/swarmonitor/status"
 )
 
+const VERSION = "0.0.2"
+
 func main() {
+	showVersion := flag.Bool("version", false, "show application version")
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(VERSION)
+		os.Exit(0)
+	}
+
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
