@@ -67,7 +67,7 @@ func run(ctx context.Context) error {
 				}
 			}
 
-			log.Println("swarmonitor - checks completed.")
+			log.Printf("swarmonitor - %s - checks completed.\r\n", statusList.Origin)
 		}
 	}
 }

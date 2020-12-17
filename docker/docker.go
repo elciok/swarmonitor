@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -58,6 +59,7 @@ func UpdateStatus(status *status.Status) error {
 	}
 	status.SetRunning(anyRunning)
 	status.SetHealthy(anyHealthy)
+	log.Printf("%s - status: %s.\r\n", status.Target, status.StatusString())
 
 	return nil
 }
