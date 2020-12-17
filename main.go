@@ -40,6 +40,7 @@ func run(ctx context.Context) error {
 			cfg = config.ReadConfig()
 
 			statusList.DataDir = cfg.ContainerDir
+			statusList.Origin = cfg.Origin
 			if err := statusList.ReadFromFiles(); err != nil {
 				return err
 			}

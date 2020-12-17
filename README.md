@@ -8,6 +8,7 @@ You can use environment variables to configure Swarmonitor, except for container
 
 ### Environment variables
 
+- SWMON_ORIGIN: String to identify server/cluster being monitored. It's sent along with the notification e-mail.
 - SWMON_CONTAINER_DIR: Path to directory with container sets config files. Default: */etc/swarmonitor/containers*.
 - SWMON_TICK_MINUTES: Interval in minutes to periodically check container sets. Default: 1.
 - SWMON_SMTP_FROM: Sender e-mail address used to send notification e-mails.

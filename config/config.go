@@ -9,11 +9,13 @@ import (
 )
 
 type Config struct {
+	Origin       string
 	ContainerDir string
 	SMTP         *notifier.SMTPConfig
 	TickInterval time.Duration
 }
 
+const SWMON_ORIGIN = "SWMON_ORIGIN"
 const SWMON_CONTAINER_DIR = "SWMON_CONTAINER_DIR"
 const SWMON_TICK_MINUTES = "SWMON_TICK_MINUTES"
 const SWMON_SMTP_ADDRESS = "SWMON_SMTP_ADDRESS"
@@ -27,6 +29,8 @@ const SWMON_SMTP_FROM = "SWMON_SMTP_FROM"
 
 func ReadConfig() *Config {
 	config := &Config{}
+
+	config.Origin = os.Getenv(SWMON_ORIGIN)
 
 	config.ContainerDir = os.Getenv(SWMON_CONTAINER_DIR)
 	if config.ContainerDir == "" {

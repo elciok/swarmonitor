@@ -13,6 +13,7 @@ import (
 )
 
 type Status struct {
+	Origin      string
 	Target      string
 	Labels      map[string]string
 	checkHealth bool
@@ -22,6 +23,7 @@ type Status struct {
 }
 
 type StatusList struct {
+	Origin  string
 	DataDir string
 	List    map[string]*Status
 }
@@ -81,11 +83,11 @@ func (statusList *StatusList) ReadFromFiles() error {
 		status, ok := statusList.List[file]
 		if !ok {
 			status = NewStatus(file, labels)
-
 			statusList.List[file] = status
 		} else {
 			status.Labels = labels
 		}
+		status.Origin = statusList.Origin
 	}
 
 	//remove files that were removed
@@ -137,7 +139,7 @@ func (status *Status) ShouldSendNotification() bool {
 }
 
 func (status *Status) SendNotification(cfg *notifier.SMTPConfig) error {
-	subject := fmt.Sprintf("swarmonitor - %s is %s", status.Target, status.StatusString())
+	subject := fmt.Sprintf("swarmonitor(%s) - %s is %s", status.Origin, status.Target, status.StatusString())
 	body := bodyString(status)
 	if err := notifier.SendNotification(cfg, subject, body); err != nil {
 		return err
@@ -149,6 +151,7 @@ func (status *Status) SendNotification(cfg *notifier.SMTPConfig) error {
 func bodyString(status *Status) string {
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "Status: %s\r\n", status.StatusString())
+	fmt.Fprintf(&builder, "Origin: %s\r\n", status.Origin)
 	fmt.Fprintf(&builder, "Time: %s\r\n\r\n", time.Now())
 	fmt.Fprint(&builder, "Labels:\r\n")
 	for labelKey, labelValue := range status.Labels {
